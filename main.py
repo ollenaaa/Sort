@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 import os
 import shutil
 import sys
@@ -34,12 +34,12 @@ def is_directory(path):
     else:
         try:
             if path.is_dir():
-                print(f'{path} is a directory.')
+                print(str(path) + 'is a directory.')
                 return True
             else:
-                print(f'{path} is not a directory or path is incorrect.')
+                print(str(path) + 'is not a directory or path is incorrect.')
         except Exception as e:
-            print(f'An error occurred: {str(e)}.')
+            print('An error occurred:' + str(e))
     return False
 
 
@@ -70,17 +70,17 @@ def sort(path):
                 for folder, extension in folders.items():
                     if file_extension in extension:
                         normalized_file_root = normalize(file_root)
-                        new_file_name = f'{normalized_file_root}{file_extension}'
+                        new_file_name = '{}{}'.format(normalized_file_root, file_extension)
                         known_extensions.add(file_extension)
                         flag = False
 
                         if folder == 'archives':
                             is_unpacked = False
                             try:
-                                shutil.unpack_archive(file, f'{normalized_file_root}')
+                                shutil.unpack_archive(file, '{}'.format(normalized_file_root))
                                 is_unpacked = True
                             except shutil.ReadError as e:
-                                print(f"Error: {e}")
+                                print('Error:' + str(e))
                             if is_unpacked:
                                 categorized_files[folder].append(normalized_file_root)
                                 shutil.move(normalized_file_root, os.path.join(folder, normalized_file_root))
@@ -98,9 +98,9 @@ def sort(path):
                 if dir != 'images' and dir != 'video' and dir != 'archives' and dir != 'audio' and dir != 'documents':
                     try:
                         os.rmdir(dir)
-                        print(f'Directory {dir} has been removed successfully')
+                        print('Directory' + dir + 'has been removed successfully')
                     except OSError as error:
-                        print(f'Directory {dir} can not be removed')
+                        print('Directory' + dir + 'can not be removed')
                     if os.path.exists(dir):
                         normalized_dir = normalize(dir)
                         os.rename(dir, normalized_dir)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     sort(path)
 
     for type, files in categorized_files.items():
-        print(f'Список файлів в категорії {type} : {files}')
+        print('Список файлів в категорії' + type + ': ' + str(files))
 
-    print(f'Перелік усіх відомих скрипту розширень, які зустрічаються в цільовій папці: {known_extensions}')
-    print(f'Перелік всіх розширень, які скрипту невідомі: {unknown_extensions}')
+    print('Перелік усіх відомих скрипту розширень, які зустрічаються в цільовій папці: ' + str(known_extensions))
+    print('Перелік всіх розширень, які скрипту невідомі: ' + str(unknown_extensions))
