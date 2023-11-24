@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import shutil
 import sys
@@ -20,12 +19,12 @@ folders = {
     'documents': ('.doc', '.docx', '.txt', '.pdf', '.xlsx', '.pptx'),
     'audio': ('.mp3', '.ogg', '.wav', '.amr'),
     'archives': ('.zip', '.gz', '.tar'),
+    'unknown': set(),
 }
 
 categorized_files = {'images': [], 'audio': [], 'video': [], 'documents': [], 'archives': [], 'unknown': []}
 
 known_extensions = set()
-unknown_extensions = set()
 
 
 def is_directory(path):
@@ -33,13 +32,18 @@ def is_directory(path):
         return False
     else:
         try:
-            if path.is_dir():
-                print(str(path) + 'is a directory.')
-                return True
+            if os.path.exists(path):
+                print(f'{path} exists!')
+                if path.is_dir():
+                    print(f'{path} is a directory')
+                    return True
+                else:
+                    print(f'{path} is not a directory')
+                    return False
             else:
-                print(str(path) + 'is not a directory or path is incorrect.')
+                print(f'{path} is not exist!')
         except Exception as e:
-            print('An error occurred:' + str(e))
+            print(f'An error occurred: {e}')
     return False
 
 
@@ -53,61 +57,65 @@ def normalize(str):
     return new_name
 
 
+def move_files(source, destination):
+    for root, dirs, files in os.walk(source):
+
+        for name in folders.keys():
+            if name in dirs:
+                dirs.remove(name)
+
+        for file in files:
+            source_path = os.path.join(root, file)
+            destination_path = os.path.join(destination, file)
+            shutil.move(source_path, destination_path)
+
+        for dir in dirs:
+            full_dir_path = os.path.join(root, dir)
+            move_files(full_dir_path, destination)
+            try:
+                os.rmdir(full_dir_path)
+            except OSError as e:
+                print(f"Failed to remove directory {full_dir_path}: {e}")
+
+
 def sort(path):
-    os.chdir(path)
-
-    for name in folders.keys():
-        if not os.path.exists(name):
-            os.mkdir(name)
-
     for root, dirs, files in os.walk(path):
-        if not 'images' in str(root) and not 'video' in str(root) and not 'documents' in str(root) and not 'audio' in str(root) and not 'archives' in str(root):
-            for file in files:
+        for name in folders.keys():
+            if name in dirs:
+                dirs.remove(name)
+        for file in files:
 
-                flag = True
-                file_root, file_extension = os.path.splitext(file)
+            file_root, file_extension = os.path.splitext(file)
 
-                for folder, extension in folders.items():
-                    if file_extension in extension:
-                        normalized_file_root = normalize(file_root)
-                        new_file_name = '{}{}'.format(normalized_file_root, file_extension)
-                        known_extensions.add(file_extension)
-                        flag = False
+            if any(char.isupper for char in file_extension):
+                file_extension_edited = file_extension.lower()
+            else:
+                file_extension_edited = file_extension
 
-                        if folder == 'archives':
-                            is_unpacked = False
-                            try:
-                                shutil.unpack_archive(file, '{}'.format(normalized_file_root))
-                                is_unpacked = True
-                            except shutil.ReadError as e:
-                                print('Error:' + str(e))
-                            if is_unpacked:
-                                categorized_files[folder].append(normalized_file_root)
-                                shutil.move(normalized_file_root, os.path.join(folder, normalized_file_root))
-                                os.remove(file)
+            normalized_file_root = normalize(file_root)
+            new_file_name = f'{normalized_file_root}{file_extension}'
 
-                        else:
-                            categorized_files[folder].append(new_file_name)
-                            shutil.move(file, os.path.join(folder, new_file_name))
+            is_unknown = False
 
-                if flag:
-                    unknown_extensions.add(file_extension)
-                    categorized_files['unknown'].append(file)
+            for folder, extencions in folders.items():
+                if folder == 'unknown':
+                    folders[folder].add(file_extension_edited)
 
-            for dir in dirs:
-                if dir != 'images' and dir != 'video' and dir != 'archives' and dir != 'audio' and dir != 'documents':
-                    try:
-                        os.rmdir(dir)
-                        print('Directory' + dir + 'has been removed successfully')
-                    except OSError as error:
-                        print('Directory' + dir + 'can not be removed')
-                    if os.path.exists(dir):
-                        normalized_dir = normalize(dir)
-                        os.rename(dir, normalized_dir)
-                        sort(os.path.join(root, normalized_dir))
+                if file_extension_edited in extencions:
+                    if folder == 'archives':
+                        try:
+                            shutil.unpack_archive(file, f'{normalized_file_root}')
+                            os.remove(file)
+                            file = normalized_file_root
+                        except shutil.ReadError as e:
+                            print(f"Error: {e}")
 
-            return os.chdir(os.path.dirname(root))
+                    if not is_unknown:
+                        known_extensions.add(file_extension_edited)
 
+                    categorized_files[folder].append(new_file_name)
+                    shutil.move(os.path.join(root, file), os.path.join(os.path.join(root, folder), new_file_name))
+                    break
 
 
 if __name__ == '__main__':
@@ -116,10 +124,18 @@ if __name__ == '__main__':
     if not flag:
         sys.exit(1)
 
+    os.chdir(path)
+
+    move_files(path, path)
+
+    for name in folders.keys():
+        if not os.path.exists(name):
+            os.mkdir(name)
+
     sort(path)
 
     for type, files in categorized_files.items():
-        print('Список файлів в категорії' + type + ': ' + str(files))
+        print(f'Список файлів в категорії {type}: {files}')
 
-    print('Перелік усіх відомих скрипту розширень, які зустрічаються в цільовій папці: ' + str(known_extensions))
-    print('Перелік всіх розширень, які скрипту невідомі: ' + str(unknown_extensions))
+    print(f'Перелік усіх відомих скрипту розширень, які зустрічаються в цільовій папці: {known_extensions}')
+    print(f'Перелік всіх розширень, які скрипту невідомі: {folders["unknown"]}')
